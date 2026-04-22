@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -154,7 +155,11 @@ X_test_scaled = scaler.transform(X_test)
 # 12. Train & Evaluate Models
 # ================================
 print("\nTraining & evaluating models...")
-rf_model = RandomForestClassifier(n_estimators=100, random_state=42)
+
+#num of RF tress
+num_rf_model_estimators = 100
+rf_model = RandomForestClassifier(num_rf_model_estimators, random_state=42)
+
 knn_model = KNeighborsClassifier(n_neighbors=5)
 lr_model = LogisticRegression(max_iter=1000)
 svm_model = SVC(kernel='rbf', probability=True, random_state = 42)
@@ -537,7 +542,7 @@ X_test_no_turb = X_test.drop(columns=[turb_col])
 print(f"Original feature count: {X_train.shape[1]}")
 print(f"Ablated feature count:  {X_train_no_turb.shape[1]}")
 
-rf_ablation = RandomForestClassifier(n_estimators=100, random_state=42)
+rf_ablation = RandomForestClassifier(num_rf_model_estimators, random_state=42)
 rf_ablation.fit(X_train_no_turb, y_train)
 ablation_acc = rf_ablation.score(X_test_no_turb, y_test)
 
@@ -597,7 +602,9 @@ print("\nRunning Comparative Ablation Analysis with Minimalist RF Feature Set...
 
 # Dynamically find the columns by partial names without units
 # This searches for columns containing these keywords
-keywords = ['EC', 'TSS', 'Sample temperature']
+keywords = ['TDS', 'TSS', 'Sample temperature']
+#um, let's forget we ever tried this ;)
+#keywords = ['TDS', 'TSS',]
 minimal_features = [next(c for c in X.columns if kw in c) for kw in keywords]
 
 print(f"Selected Minimalist Features: {minimal_features}")
@@ -619,7 +626,7 @@ for label, f_list in feature_sets.items():
 
     # Initialize and fit a fresh RF model
     # Using random_state=42 ensures the comparison is fair (same splits)
-    clf = RandomForestClassifier(n_estimators=100, random_state=42)
+    clf = RandomForestClassifier(num_rf_model_estimators, random_state=42)
     clf.fit(X_tr_sub, y_train)
 
     # Predict and evaluate
