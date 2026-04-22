@@ -468,6 +468,10 @@ y_pred_rf = rf_model.predict(X_test)
 cm = confusion_matrix(y_test, y_pred_rf)
 disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=le.classes_)
 disp.plot(cmap='Blues')
+
+#reset grid lines to off
+plt.grid(False)
+
 plt.title("Confusion Matrix — Random Forest", fontsize=14, pad=20, weight='bold')
 plt.tight_layout()
 plt.savefig('Confusion Matrix — Random Forest.png', dpi=300, bbox_inches='tight')
