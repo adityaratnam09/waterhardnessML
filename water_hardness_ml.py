@@ -606,9 +606,8 @@ print("\nRunning Comparative Ablation Analysis with Minimalist RF Feature Set...
 
 # Dynamically find the columns by partial names without units
 # This searches for columns containing these keywords
-keywords = ['TDS', 'TSS', 'Sample temperature']
-#um, let's forget we ever tried this ;)
-#keywords = ['TDS', 'TSS',]
+keywords = ['EC', 'TSS', 'Sample temperature']
+
 minimal_features = [next(c for c in X.columns if kw in c) for kw in keywords]
 
 print(f"Selected Minimalist Features: {minimal_features}")
