@@ -372,7 +372,15 @@ cv_scores_all = {}
 full_scaler = StandardScaler()
 X_scaled = full_scaler.fit_transform(X)
 
-for name, (model, _, _) in models.items():
+# Fresh instances are used so CV and test-set evaluations are fully
+# independent with no shared state between the two.
+cv_models = {
+    "KNN": KNeighborsClassifier(**knn_model.get_params()),
+    "LR":  LogisticRegression(**lr_model.get_params()),
+    "SVM": SVC(**svm_model.get_params()),
+    "RF":  RandomForestClassifier(**rf_model.get_params()),
+}
+for name, (model, _, _) in cv_models.items():
     # Use scaled data for KNN/LR/SVM, original for RF
     X_input = X_scaled if name in ["KNN", "LR", "SVM"] else X
 
