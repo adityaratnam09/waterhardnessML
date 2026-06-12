@@ -158,7 +158,7 @@ print("\nTraining & evaluating models...")
 
 #num of RF tress
 num_rf_model_estimators = 100
-rf_model = RandomForestClassifier(num_rf_model_estimators, random_state=42)
+rf_model = RandomForestClassifier(n_estimators=num_rf_model_estimators, random_state=42)
 
 knn_model = KNeighborsClassifier(n_neighbors=5)
 lr_model = LogisticRegression(max_iter=1000)
@@ -546,7 +546,7 @@ X_test_no_turb = X_test.drop(columns=[turb_col])
 print(f"Original feature count: {X_train.shape[1]}")
 print(f"Ablated feature count:  {X_train_no_turb.shape[1]}")
 
-rf_ablation = RandomForestClassifier(num_rf_model_estimators, random_state=42)
+rf_ablation = RandomForestClassifier(n_estimators=num_rf_model_estimators, random_state=42)
 rf_ablation.fit(X_train_no_turb, y_train)
 ablation_acc = rf_ablation.score(X_test_no_turb, y_test)
 
@@ -629,7 +629,7 @@ for label, f_list in feature_sets.items():
 
     # Initialize and fit a fresh RF model
     # Using random_state=42 ensures the comparison is fair (same splits)
-    clf = RandomForestClassifier(num_rf_model_estimators, random_state=42)
+    clf = RandomForestClassifier(n_estimators=num_rf_model_estimators, random_state=42)
     clf.fit(X_tr_sub, y_train)
 
     # Predict and evaluate
