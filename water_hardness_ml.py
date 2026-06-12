@@ -9,12 +9,14 @@ from sklearn.preprocessing import LabelEncoder, StandardScaler
 from sklearn.impute import SimpleImputer
 from IPython.display import display, clear_output
 
-#models
+# Models
+# NOTE: DecisionTree, XGBoost, and AdaBoost are kept here as optional extensions.
+# To enable them, uncomment the import, the model definition, and the models dict entry.
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.linear_model import LogisticRegression
 from sklearn.tree import DecisionTreeClassifier
-from xgboost import XGBClassifier
+# from xgboost import XGBClassifier
 from sklearn.svm import SVC, LinearSVC
 from sklearn.ensemble import AdaBoostClassifier
 
@@ -28,6 +30,7 @@ from sklearn.inspection import permutation_importance
 from sklearn.decomposition import PCA
 from sklearn.inspection import DecisionBoundaryDisplay
 from sklearn.model_selection import learning_curve
+from statsmodels.stats.proportion import proportion_confint
 
 # ================================
 # 1. Upload & Load Dataset
@@ -51,7 +54,17 @@ df.columns = df.columns.str.strip().str.replace('\n', ' ')
 print("Columns:", df.columns.tolist())
 
 # ================================
-# 3. Drop Non-Numeric / Irrelevant Columns
+# 3. Extract Target Before Dropping Columns
+# ================================
+target_cols = [c for c in df.columns if 'classification' in c.lower()]
+assert target_cols, "Target column not found — check that a 'classification' column exists"
+target_col = target_cols[0]
+print(f"Target column: {target_col}")
+
+y_raw = df[target_col].astype(str).str.lower().str.strip()
+
+# ================================
+# 4. Drop Non-Numeric / Irrelevant Columns
 # ================================
 cols_to_drop = [
     'Date (DD/MM/YYYY)',
@@ -63,23 +76,12 @@ cols_to_drop = [
 # Drop the raw hardness value to avoid data leakage.
 # The classification IS just a threshold on this column, so including it
 # would let the model trivially learn the rule rather than the chemistry.
-hardness_col = [c for c in df.columns if 'Hardness' in c and 'classification' not in c]
-cols_to_drop += hardness_col
+hardness_cols = [c for c in df.columns if 'Hardness' in c and 'classification' not in c]
+cols_to_drop += hardness_cols
 
 for col in cols_to_drop:
     if col in df.columns:
         df = df.drop(columns=[col])
-
-# ================================
-# 4. Set Target Column
-# ================================
-df_full = pd.read_csv(file_name)
-df_full.columns = df_full.columns.str.strip().str.replace('\n', '_')
-
-target_col = [c for c in df_full.columns if 'classification' in c.lower()][0]
-print(f"Target column: {target_col}")
-
-y_raw = df_full[target_col].astype(str).str.lower().str.strip()
 
 # ================================
 # 5. Filter Valid Labels & Encode
@@ -130,21 +132,24 @@ X_train, X_test, y_train, y_test = train_test_split(
 )
 
 # ================================
-# 10. Baseline Model (EC Threshold)
+# 9. Baseline Model (EC Threshold)
 # ================================
 # EC is the chemically motivated baseline: high ionic strength (high EC)
 # correlates directly with higher Ca2+ and Mg2+ concentrations and thus
 # greater hardness. A simple median threshold tests whether a single
 # field-readable measurement can already classify hardness reasonably.
 print("\nRunning a baseline EC threshold model...")
-ec_col = [c for c in X.columns if 'EC' in c][0]
+ec_cols = [c for c in X.columns if 'EC' in c]
+assert ec_cols, "EC column not found — check column names"
+ec_col = ec_cols[0]
+
 ec_threshold = X_train[ec_col].median()
 y_pred_baseline = [1 if val > ec_threshold else 0 for val in X_test[ec_col]]
 baseline_acc = accuracy_score(y_test, y_pred_baseline)
 print(f"\nEC-Threshold Baseline Accuracy: {baseline_acc:.2%} (EC Median: {ec_threshold:.1f} µS/cm)")
 
 # ================================
-# 11. Scale Features (KNN, SVM & Logistic Regression only)
+# 10. Scale Features (KNN, SVM & Logistic Regression only)
 # ================================
 print("\nScaling features...")
 scaler = StandardScaler()
@@ -152,29 +157,29 @@ X_train_scaled = scaler.fit_transform(X_train)
 X_test_scaled = scaler.transform(X_test)
 
 # ================================
-# 12. Train & Evaluate Models
+# 11. Train & Evaluate Models
 # ================================
 print("\nTraining & evaluating models...")
 
-#num of RF tress
+# Number of RF trees
 num_rf_model_estimators = 100
 rf_model = RandomForestClassifier(n_estimators=num_rf_model_estimators, random_state=42)
 
 knn_model = KNeighborsClassifier(n_neighbors=5)
 lr_model = LogisticRegression(max_iter=1000)
-svm_model = SVC(kernel='rbf', probability=True, random_state = 42)
-#dt_model = DecisionTreeClassifier( max_depth=4, random_state=42)
-#xgb_model = XGBClassifier(max_depth= 8, n_estimators= 125, random_state= 0,  learning_rate= 0.03)
-#ada_model = AdaBoostClassifier(learning_rate= 0.1,n_estimators= 500,random_state=42)
+svm_model = SVC(kernel='rbf', probability=True, random_state=42)
+#dt_model = DecisionTreeClassifier(max_depth=4, random_state=42)
+#xgb_model = XGBClassifier(max_depth=8, n_estimators=125, random_state=0, learning_rate=0.03)
+#ada_model = AdaBoostClassifier(learning_rate=0.1, n_estimators=500, random_state=42)
 
 models = {
-    "KNN":(knn_model, X_train_scaled, X_test_scaled),
-    "LR":(lr_model, X_train_scaled, X_test_scaled),
-    "SVM":(svm_model, X_train_scaled, X_test_scaled),
-    "RF":(rf_model, X_train, X_test),
-#   "DT":(dt_model, X_train, X_test),
-#   "XGB":(xgb_model, X_train, X_test),
-#   "Ada":(ada_model, X_train, X_test),
+    "KNN": (knn_model, X_train_scaled, X_test_scaled),
+    "LR":  (lr_model,  X_train_scaled, X_test_scaled),
+    "SVM": (svm_model, X_train_scaled, X_test_scaled),
+    "RF":  (rf_model,  X_train,        X_test),
+#   "DT":  (dt_model,  X_train,        X_test),
+#   "XGB": (xgb_model, X_train,        X_test),
+#   "Ada": (ada_model, X_train,        X_test),
 }
 
 results_list = []
@@ -200,7 +205,7 @@ for name, (model, X_tr, X_te) in models.items():
     print("="*50)
     print(classification_report(y_test, y_pred, target_names=le.classes_, zero_division=0))
 
-    #Collect Metrics for the Master Table
+    # Collect Metrics for the Master Table
     precision, recall, f1, _ = precision_recall_fscore_support(y_test, y_pred,
                                                                average='weighted', zero_division=0)
     results_list.append({
@@ -223,7 +228,19 @@ for name, (model, X_tr, X_te) in models.items():
     plt.plot(fpr, tpr, lw=2, label=f'{name} (AUC = {roc_auc:.4f})')
 
 # ================================
-# 13.Consolidated ROC Curves
+# 12. Predict on Test Set & Wilson CI (Random Forest)
+# ================================
+y_pred_rf = rf_model.predict(X_test)
+
+n_correct = int(round(accuracy_score(y_test, y_pred_rf) * len(y_test)))
+n_total   = len(y_test)
+ci_low, ci_high = proportion_confint(n_correct, n_total, alpha=0.05, method='wilson')
+print(f"\nRF Test Accuracy: {accuracy_score(y_test, y_pred_rf):.2%}")
+print(f"Wilson 95% CI:    {ci_low:.1%} - {ci_high:.1%}  (n={n_total})")
+print("(Note: wide interval expected for small test set; use CV mean as conservative estimate)")
+
+# ================================
+# 13. Consolidated ROC Curves
 # ================================
 print("\nGenerating Consolidated ROC Curves...")
 plt.plot([0, 1], [0, 1], color='navy', lw=2, linestyle='--')
@@ -237,7 +254,7 @@ plt.show()
 plt.close()
 
 # ================================
-# 14.Consolidated Metrics
+# 14. Consolidated Metrics
 # ================================
 #df_results = pd.DataFrame(results_list).sort_values(by="Accuracy (%)", ascending=False)
 df_results = pd.DataFrame(results_list)
@@ -251,7 +268,7 @@ print(df_results.to_string(index=False))
 # ================================
 print("\nGenerating Accuracy Model Performance stats...")
 plt.figure(figsize=(6, 4))
-#plt.bar(results.keys(), results.values(),edgecolor='black')
+#plt.bar(results.keys(), results.values(), edgecolor='black')
 plt.bar(results.keys(), results.values(),
         color=plt.cm.Set3(range(len(results))), edgecolor='black')
 plt.ylim(0.5, 1.05)
@@ -300,7 +317,7 @@ plt.show()
 plt.close()
 
 # ================================
-# 16. Comprehensive Model Performance Table
+# 17. Comprehensive Model Performance Table
 # ================================
 print("\nGenerating Comprehensive Model Performance Table...")
 df_table = pd.DataFrame(df_results.set_index('Model'))
@@ -329,11 +346,11 @@ table.auto_set_font_size(False)
 table.set_fontsize(11)
 table.scale(1.2, 2.5)
 for (row, col), cell in table.get_celld().items():
-    if row == 0: # Header
+    if row == 0:  # Header
         cell.set_text_props(weight='bold', color='white')
         cell.set_facecolor('#2C3E50')
         cell.set_edgecolor('black')
-    else: # Body
+    else:  # Body
         cell.set_facecolor('white')
         cell.set_edgecolor('#D3D3D3')
 
@@ -342,7 +359,7 @@ plt.show()
 plt.close()
 
 # ================================
-# 17. 5-fold Stratified Cross-Validation
+# 18. 5-fold Stratified Cross-Validation
 # ================================
 print("\nGenerating 5-fold Stratified Cross-Validation...")
 print("\n" + "="*50)
@@ -356,7 +373,7 @@ full_scaler = StandardScaler()
 X_scaled = full_scaler.fit_transform(X)
 
 for name, (model, _, _) in models.items():
-    # Use scaled data for KNN/LR/SVM, original for others
+    # Use scaled data for KNN/LR/SVM, original for RF
     X_input = X_scaled if name in ["KNN", "LR", "SVM"] else X
 
     scores = cross_val_score(model, X_input, y, cv=cv_shuffled, scoring='accuracy')
@@ -372,7 +389,7 @@ data = [cv_scores_all[name] * 100 for name in labels]
 bp = plt.boxplot(data, vert=False, patch_artist=True, tick_labels=labels,
                  medianprops=dict(color='red', linewidth=2))
 
-# Apply coolwarm or viridis colors in two lines
+# Apply coolwarm colors
 colors = plt.cm.coolwarm(np.linspace(0, 1, len(labels)))
 for patch, color in zip(bp['boxes'], colors):
     patch.set_facecolor(color)
@@ -386,7 +403,7 @@ plt.show()
 plt.close()
 
 # ============================================================
-# 18. PCA decision bounadries
+# 19. PCA Decision Boundaries
 # ============================================================
 print("\nGenerating Decision Boundary Visualization...")
 
@@ -395,8 +412,7 @@ print("\nGenerating Decision Boundary Visualization...")
 pca_viz = PCA(n_components=2)
 X_pca = pca_viz.fit_transform(X)
 
-# 2. Define the models to compare using your existing parameters
-# We use the parameters from our already-trained models for consistency
+# 2. Define the models to compare using existing parameters
 viz_models = {
     'KNN': KNeighborsClassifier(**knn_model.get_params()),
     'Logistic Regression': LogisticRegression(**lr_model.get_params()),
@@ -430,13 +446,12 @@ for i, (name, mod) in enumerate(viz_models.items()):
 plt.suptitle("Decision Boundary Comparison: RF Complexity vs. Linear Simplicity",
              fontsize=14, fontweight='bold', y=1.05)
 plt.tight_layout()
-
 plt.savefig('Decision Boundaries Comparison.png', dpi=300, bbox_inches='tight')
 plt.show()
 plt.close()
 
 # =======================================
-# 19. Learning Curve (Random Forest)
+# 20. Learning Curve (Random Forest)
 # =======================================
 print("\nGenerating Learning Curve - Random Forest...")
 train_sizes, train_scores, test_scores = learning_curve(
@@ -461,25 +476,24 @@ plt.show()
 plt.close()
 
 # ================================
-# 20. Confusion Matrix (Random Forest)
+# 21. Confusion Matrix (Random Forest)
 # ================================
 print("\nGenerating Confusion Matrix - Random Forest...")
-y_pred_rf = rf_model.predict(X_test)
 cm = confusion_matrix(y_test, y_pred_rf)
 disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=le.classes_)
 disp.plot(cmap='Blues')
 
-#reset grid lines to off
+# Reset grid lines to off
 plt.grid(False)
 
-plt.title("Confusion Matrix — Random Forest", fontsize=14, pad=20, weight='bold')
+plt.title("Confusion Matrix - Random Forest", fontsize=14, pad=20, weight='bold')
 plt.tight_layout()
-plt.savefig('Confusion Matrix — Random Forest.png', dpi=300, bbox_inches='tight')
+plt.savefig('Confusion Matrix - Random Forest.png', dpi=300, bbox_inches='tight')
 plt.show()
 plt.close()
 
 # ================================
-# 21. Gini Feature Importance (Random Forest)
+# 22. Gini Feature Importance (Random Forest)
 # ================================
 print("\nGenerating Gini Feature Importance Study - Random Forest...")
 importances = rf_model.feature_importances_
@@ -487,15 +501,15 @@ sorted_idx = np.argsort(importances)
 
 plt.figure(figsize=(8, 5))
 plt.barh(X.columns[sorted_idx], importances[sorted_idx], color='steelblue')
-plt.title("Feature Importance — Random Forest", fontsize=14, pad=20, weight='bold')
+plt.title("Feature Importance - Random Forest", fontsize=14, pad=20, weight='bold')
 plt.xlabel("Importance Score")
 plt.tight_layout()
-plt.savefig('Feature Importance — Random Forest.png', dpi=300, bbox_inches='tight')
+plt.savefig('Feature Importance - Random Forest.png', dpi=300, bbox_inches='tight')
 plt.show()
 plt.close()
 
 # ================================
-# 22. Permutation Importance (Random Forest)
+# 23. Permutation Importance (Random Forest)
 # ================================
 print("\nGenerating Permutation Importance Study - Random Forest...")
 perm_result = permutation_importance(rf_model, X_test, y_test,
@@ -503,16 +517,17 @@ perm_result = permutation_importance(rf_model, X_test, y_test,
 sorted_idx = perm_result.importances_mean.argsort()
 
 plt.figure(figsize=(10, 6))
-plt.boxplot(perm_result.importances[sorted_idx].T, vert=False, tick_labels=X.columns[sorted_idx])
+plt.boxplot(perm_result.importances[sorted_idx].T, vert=False,
+            tick_labels=X.columns[sorted_idx])
 plt.title("Permutation Importance (Test Set) - Random Forest", fontsize=14, pad=20, weight='bold')
 plt.xlabel("Decrease in Accuracy Score (when feature is shuffled)")
 plt.tight_layout()
-plt.savefig('Permutation Importance — Random Forest.png', dpi=300, bbox_inches='tight')
+plt.savefig('Permutation Importance - Random Forest.png', dpi=300, bbox_inches='tight')
 plt.show()
 plt.close()
 
 # ================================
-# 23. SHAP Interpretability (Random Forest)
+# 24. SHAP Interpretability (Random Forest)
 # ================================
 print("\nGenerating SHAP Interpretability - Random Forest...")
 explainer = shap.TreeExplainer(rf_model)
@@ -535,13 +550,15 @@ plt.show()
 plt.close()
 
 # ================================
-# 24. Ablation Study: Removing Turbidity (Random Forest)
+# 25. Ablation Study: Removing Turbidity (Random Forest)
 # ================================
 print("\nGenerating Ablation Study: Removing Turbidity - Random Forest...")
-turb_col = [c for c in X.columns if 'Turbidity' in c][0]
+turb_cols = [c for c in X.columns if 'Turbidity' in c]
+assert turb_cols, "Turbidity column not found — check column names"
+turb_col = turb_cols[0]
 
 X_train_no_turb = X_train.drop(columns=[turb_col])
-X_test_no_turb = X_test.drop(columns=[turb_col])
+X_test_no_turb  = X_test.drop(columns=[turb_col])
 
 print(f"Original feature count: {X_train.shape[1]}")
 print(f"Ablated feature count:  {X_train_no_turb.shape[1]}")
@@ -557,15 +574,13 @@ print(f"\nAblation Study - Random Forest:")
 print(f"  Accuracy WITH Turbidity:    {accuracy_score(y_test, y_pred_rf):.2%}")
 print(f"  Accuracy WITHOUT Turbidity: {ablation_acc:.2%}")
 
-acc_with = accuracy_score(y_test, y_pred_rf)
+acc_with    = accuracy_score(y_test, y_pred_rf)
 acc_without = ablation_acc
 
 labels = ['With Turbidity', 'Without Turbidity']
 scores = [acc_with, acc_without]
 
 plt.figure(figsize=(6, 5))
-
-#apply coolwarm or viridis colors
 colors = plt.cm.coolwarm([0.3, 0.7])
 bars = plt.bar(labels, scores, color=colors, edgecolor='black', width=0.5)
 
@@ -579,12 +594,12 @@ plt.ylabel("Accuracy Score")
 plt.ylim(0.5, 1.05)
 plt.grid(axis='y', linestyle='--', alpha=0.3)
 plt.tight_layout()
-plt.savefig('Ablation Study on Random Forest using Turbidity', dpi=300, bbox_inches='tight')
+plt.savefig('Ablation Study on Random Forest using Turbidity.png', dpi=300, bbox_inches='tight')
 plt.show()
 plt.close()
 
 # ================================
-# 25. Inter-Feature Correlation heatmap
+# 26. Inter-Feature Correlation Heatmap
 # ================================
 print("\nGenerating Inter-Feature Correlation heatmap...")
 corr_matrix = X.corr()
@@ -599,23 +614,24 @@ plt.show()
 plt.close()
 
 # ============================================================
-# 26. Comparative RF Ablation Analysis: Full vs. Minimalist Set with ROC curve
+# 27. Comparative RF Ablation Analysis: Full vs. Minimalist Set with ROC curve
 # ============================================================
 print("\nRunning Comparative Ablation Analysis with Minimalist RF Feature Set...")
-# Define the Feature Sets
 
 # Dynamically find the columns by partial names without units
-# This searches for columns containing these keywords
 keywords = ['EC', 'TSS', 'Sample temperature']
-
-minimal_features = [next(c for c in X.columns if kw in c) for kw in keywords]
+minimal_features = []
+for kw in keywords:
+    matches = [c for c in X.columns if kw in c]
+    assert matches, f"Keyword '{kw}' not found in column names — check column names"
+    minimal_features.append(matches[0])
 
 print(f"Selected Minimalist Features: {minimal_features}")
 full_features = list(X.columns)
 
 feature_sets = {
-    f"Full Model ({len(full_features)} Features): ": full_features,
-    f"Minimalist Model ({len(minimal_features)} Features): ": minimal_features
+    f"Full Model ({len(full_features)} Features): ":         full_features,
+    f"Minimalist Model ({len(minimal_features)} Features): ": minimal_features,
 }
 
 ablation_results = []
@@ -623,7 +639,6 @@ ablation_results = []
 plt.figure(figsize=(8, 6))
 
 for label, f_list in feature_sets.items():
-    # Subset the data
     X_tr_sub = X_train[f_list]
     X_te_sub = X_test[f_list]
 
@@ -632,32 +647,30 @@ for label, f_list in feature_sets.items():
     clf = RandomForestClassifier(n_estimators=num_rf_model_estimators, random_state=42)
     clf.fit(X_tr_sub, y_train)
 
-    # Predict and evaluate
-    y_pred = clf.predict(X_te_sub)
-    acc = accuracy_score(y_test, y_pred)
-    f1 = f1_score(y_test, y_pred, average='weighted')
+    y_pred_sub = clf.predict(X_te_sub)
+    acc = accuracy_score(y_test, y_pred_sub)
+    f1  = f1_score(y_test, y_pred_sub, average='weighted')
 
     ablation_results.append({
         "Configuration": label,
-        "Accuracy (%)": acc * 100,
-        "F1-Score": f1,
+        "Accuracy (%)":  acc * 100,
+        "F1-Score":      f1,
         #"Feature Count": len(f_list)
     })
 
     y_prob = clf.predict_proba(X_te_sub)[:, 1]
     fpr, tpr, _ = roc_curve(y_test, y_prob)
     roc_auc = auc(fpr, tpr)
-
     plt.plot(fpr, tpr, lw=2, label=f'{label} (AUC = {roc_auc:.4f})')
 
 plt.plot([0, 1], [0, 1], color='navy', lw=1, linestyle='--')
 plt.xlabel('False Positive Rate')
 plt.ylabel('True Positive Rate')
-plt.title('ROC Curve: Full Model vs Minimal Model- Random Forest')
+plt.title('ROC Curve: Full Model vs Minimal Model - Random Forest',
+          fontsize=14, pad=20, weight='bold')
 plt.legend(loc="lower right")
-
 plt.tight_layout()
-plt.savefig('ROC Curve: Full Model vs Minimal Model - Random Forest', dpi=300, bbox_inches='tight')
+plt.savefig('ROC Curve - Full vs Minimal Model - Random Forest.png', dpi=300, bbox_inches='tight')
 plt.show()
 plt.close()
 
@@ -671,16 +684,16 @@ print("="*60)
 plt.figure(figsize=(10, 6))
 sns.set_style("whitegrid")
 
-#use coolwarm or viridis
+# Use coolwarm colors
 ax = sns.barplot(data=df_ablation, x='Configuration', y='Accuracy (%)',
                  hue='Configuration', palette='coolwarm', edgecolor='black')
 
-plt.title('Impact of Feature Reduction on Random Forest Performance', fontsize=14, pad=20, weight='bold')
+plt.title('Impact of Feature Reduction on Random Forest Performance',
+          fontsize=14, pad=20, weight='bold')
 plt.ylim(0, 110)
 plt.ylabel('Accuracy (%)', fontsize=12)
 plt.xlabel('')
 
-# Add value labels
 for p in ax.patches:
     ax.annotate(f'{p.get_height():.4f}%',
                 (p.get_x() + p.get_width() / 2., p.get_height()),
@@ -693,61 +706,82 @@ plt.show()
 plt.close()
 
 # ================================
-# 27. Interactive Prediction Widget
+# 28. Interactive Prediction Widget (Full Model)
 # ================================
 from ipywidgets import widgets, VBox, Layout
 
+def make_sliders(feature_cols):
+    sliders = {}
+    for col in feature_cols:
+        col_min  = float(X[col].min())
+        col_max  = float(X[col].max())
+        col_mean = float(X[col].mean())
+        step = round((col_max - col_min) / 100, 3)
+        if step == 0:
+            step = 0.01
+        sliders[col] = widgets.FloatSlider(
+            value=round(col_mean, 2), min=round(col_min, 2),
+            max=round(col_max, 2), step=step,
+            description=col[:30], style={'description_width': '200px'},
+            layout=Layout(width='500px')
+        )
+    return sliders
+
+def make_predict_fn(model, sliders, feature_cols):
+    output = widgets.Output()
+    button = widgets.Button(description='Predict Hardness Class', button_style='primary',
+                            layout=Layout(width='220px', height='40px'))
+    def on_click(b):
+        with output:
+            clear_output()
+            input_vals = pd.DataFrame(
+                [[sliders[col].value for col in feature_cols]],
+                columns=feature_cols
+            )
+            pred_label = le.inverse_transform(model.predict(input_vals))[0]
+            proba      = model.predict_proba(input_vals)[0]
+
+            eps = 1e-2
+            if abs(proba[0] - 0.5) < eps:
+                print("\n  Prediction: UNCERTAIN (near 50-50 split)")
+            else:
+                confidence = max(proba) * 100
+                color = '\033[92m' if pred_label == 'blanda' else '\033[94m'
+                reset = '\033[0m'
+                print(f"\n  Predicted class : {color}{pred_label.upper()}{reset}")
+                print(f"  Confidence      : {confidence:.1f}%")
+                print(f"  (blanda={proba[list(le.classes_).index('blanda')]:.2f})"
+                      f"   |   (semidura={proba[list(le.classes_).index('semidura')]:.2f})")
+                if pred_label == 'blanda':
+                    print("\n  Blanda = soft water  (<120 mg CaCO3/L)")
+                else:
+                    print("\n  Semidura = moderately hard water  (120-180 mg CaCO3/L)")
+    button.on_click(on_click)
+    return button, output
+
 print("\n" + "="*50)
 print("           WATER HARDNESS PREDICTOR")
+print("          Full Model (all 11 features)")
 print("="*50)
 
-sliders = {}
-for col in X.columns:
-    col_min = float(X[col].min())
-    col_max = float(X[col].max())
-    col_mean = float(X[col].mean())
-    step = round((col_max - col_min) / 100, 3)
-    if step == 0:
-        step = 0.01
+full_sliders = make_sliders(list(X.columns))
+full_button, full_output = make_predict_fn(rf_model, full_sliders, list(X.columns))
+display(VBox(list(full_sliders.values()) + [full_button, full_output],
+             layout=Layout(padding='10px')))
 
-    sliders[col] = widgets.FloatSlider(value=round(col_mean, 2),min=round(col_min, 2),
-                                       max=round(col_max, 2), step=step,
-                                       description=col[:30], style={'description_width': '200px'},
-                                       layout=Layout(width='500px'))
+# ================================
+# 29. Interactive Prediction Widget (Minimalist Model)
+# ================================
+print("\n" + "="*50)
+print("  MINIMALIST WATER HARDNESS PREDICTOR")
+print("  (EC, TSS, Sample Temperature only)")
+print("="*50)
 
-predict_button = widgets.Button(description='Predict Hardness Class', button_style='primary',
-                                layout=Layout(width='220px', height='40px'))
+# Retrain a clean minimalist RF for the widget
+rf_minimal = RandomForestClassifier(n_estimators=num_rf_model_estimators, random_state=42)
+rf_minimal.fit(X_train[minimal_features], y_train)
 
-output = widgets.Output()
-
-def on_predict(b):
-    with output:
-        clear_output()
-        input_vals = pd.DataFrame([[sliders[col].value for col in X.columns]],
-                                  columns=X.columns)
-
-        pred_label = le.inverse_transform(rf_model.predict(input_vals))[0]
-        proba = rf_model.predict_proba(input_vals)[0]
-
-        eps = 1e-2  # tolerance
-        if abs(proba[0] - 0.5) < eps:
-          print("\n  Prediction: UNCERTAIN (near 50-50 split)")
-        else:
-          confidence = max(proba) * 100
-          color = '\033[92m' if pred_label == 'blanda' else '\033[94m'
-          reset = '\033[0m'
-          print(f"\n  Predicted class : {color}{pred_label.upper()}{reset}")
-          print(f"  Confidence      : {confidence:.1f}%")
-          print(f"  (blanda={proba[list(le.classes_).index('blanda')]:.2f})   | "
-                f"  (semidura={proba[list(le.classes_).index('semidura')]:.2f})")
-          if pred_label == 'blanda':
-              print("\n  Blanda = soft water  (<120 mg CaCO3/L)")
-          else:
-              print("\n  Semidura = moderately hard water  (120-180 mg CaCO3/L)")
-
-predict_button.on_click(on_predict)
-
-display(VBox(
-    list(sliders.values()) + [predict_button, output],
-    layout=Layout(padding='10px')
-))
+minimal_sliders = make_sliders(minimal_features)
+min_button, min_output = make_predict_fn(rf_minimal, minimal_sliders, minimal_features)
+display(VBox(list(minimal_sliders.values()) + [min_button, min_output],
+             layout=Layout(padding='10px')))
