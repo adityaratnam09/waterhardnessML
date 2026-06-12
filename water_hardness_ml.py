@@ -695,9 +695,6 @@ plt.close()
 # ================================
 # 27. Interactive Prediction Widget
 # ================================
-# from ipywidgets import widgets, VBox, Layout
-# from IPython.display import display, clear_output # Moved to top
-
 from ipywidgets import widgets, VBox, Layout
 
 print("\n" + "="*50)
