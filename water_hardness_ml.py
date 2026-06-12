@@ -413,6 +413,7 @@ pca_viz = PCA(n_components=2)
 X_pca = pca_viz.fit_transform(X)
 
 # 2. Define the models to compare using existing parameters
+# We use the parameters from our already-trained models for consistency
 viz_models = {
     'KNN': KNeighborsClassifier(**knn_model.get_params()),
     'Logistic Regression': LogisticRegression(**lr_model.get_params()),
