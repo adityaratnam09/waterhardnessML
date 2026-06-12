@@ -380,7 +380,7 @@ cv_models = {
     "SVM": SVC(**svm_model.get_params()),
     "RF":  RandomForestClassifier(**rf_model.get_params()),
 }
-for name, (model, _, _) in cv_models.items():
+for name, model in cv_models.items():
     # Use scaled data for KNN/LR/SVM, original for RF
     X_input = X_scaled if name in ["KNN", "LR", "SVM"] else X
 
