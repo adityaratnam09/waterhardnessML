@@ -27,8 +27,6 @@ The Random Forest classifier achieves
 - **AUC = 0.995**
 - **89.84 ± 4.80% Five-fold Cross Validation Accuracy**
 
-while outperforming both a majority-class baseline and the traditional Electrical Conductivity (EC) threshold method.
-
 ---
 
 ## Features
@@ -101,7 +99,7 @@ Simply execute
 python waterhardnessML.py
 ```
 
-The script performs the complete workflow from preprocessing through model interpretation and saves all publication figures.
+This performs the complete workflow from preprocessing through model interpretation and saves all publication figures.
 
 ---
 
@@ -146,8 +144,6 @@ One of the principal findings is that only three routine measurements are requir
 - Electrical Conductivity (EC)
 - Sample Temperature
 - Total Suspended Solids (TSS)
-
-This reduces sensor requirements by approximately **73%** while maintaining identical classification accuracy.
 
 ---
 
