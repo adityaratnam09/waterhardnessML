@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -12,13 +10,15 @@ from IPython.display import display, clear_output
 # Models
 # NOTE: DecisionTree, XGBoost, and AdaBoost are kept here as optional extensions.
 # To enable them, uncomment the import, the model definition, and the models dict entry.
+#from sklearn.tree import DecisionTreeClassifier
+#from xgboost import XGBClassifier
+#from sklearn.ensemble import AdaBoostClassifier
+
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.linear_model import LogisticRegression
-from sklearn.tree import DecisionTreeClassifier
-# from xgboost import XGBClassifier
 from sklearn.svm import SVC, LinearSVC
-from sklearn.ensemble import AdaBoostClassifier
+
 
 #analysis packages
 import seaborn as sns
