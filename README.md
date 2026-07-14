@@ -27,6 +27,10 @@ The Random Forest classifier achieves
 - **AUC = 0.995**
 - **89.84 ± 4.80% Five-fold Cross Validation Accuracy**
 
+A detailed paper describing the framework is available on Zenodo:
+
+https://doi.org/10.5281/zenodo.21315615
+
 ---
 
 ## Features
