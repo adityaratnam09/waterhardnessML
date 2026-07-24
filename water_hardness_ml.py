@@ -6,6 +6,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from sklearn.model_selection import train_test_split, cross_val_score, StratifiedKFold
+from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import LabelEncoder, StandardScaler
 from sklearn.impute import SimpleImputer
 from IPython.display import display, clear_output
@@ -13,9 +14,9 @@ from IPython.display import display, clear_output
 # Models
 # NOTE: DecisionTree, XGBoost, and AdaBoost are kept here as optional extensions.
 # To enable them, uncomment the import, the model definition, and the models dict entry.
-#from sklearn.tree import DecisionTreeClassifier
-#from xgboost import XGBClassifier
-#from sklearn.ensemble import AdaBoostClassifier
+# from sklearn.tree import DecisionTreeClassifier
+# from xgboost import XGBClassifier
+# from sklearn.ensemble import AdaBoostClassifier
 
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.neighbors import KNeighborsClassifier
@@ -121,11 +122,7 @@ print(f"\nFeatures used ({X.shape[1]}): {X.columns.tolist()}")
 print(f"\nMissing values per column:\n{X.isnull().sum()}")
 
 # Impute with median — robust to the extreme Turbidity outliers (1000 NTU)
-imputer = SimpleImputer(strategy='median')
-X_imputed = imputer.fit_transform(X)
-X = pd.DataFrame(X_imputed, columns=X.columns)
-
-print(f"\nFinal dataset size: {X.shape[0]} rows, {X.shape[1]} features")
+print(f"\nDataset size (before imputation): {X.shape[0]} rows, {X.shape[1]} features")
 
 # ================================
 # 8. Train-Test Split (stratified)
@@ -133,6 +130,21 @@ print(f"\nFinal dataset size: {X.shape[0]} rows, {X.shape[1]} features")
 X_train, X_test, y_train, y_test = train_test_split(
     X, y, test_size=0.2, random_state=42, stratify=y
 )
+
+# Fitting on the full X before the split would allow test-set values to
+# influence the imputed medians (data leakage). Fitting on X_train only
+# and then transforming X_test prevents this.
+imputer = SimpleImputer(strategy='median')
+X_train = pd.DataFrame(imputer.fit_transform(X_train),
+                        columns=X_train.columns, index=X_train.index)
+X_test  = pd.DataFrame(imputer.transform(X_test),
+                        columns=X_test.columns,  index=X_test.index)
+
+# Full-dataset version imputed with training medians — used only for
+# visualisation (PCA, correlation heatmap) and CV pipeline input.
+X_full_imputed = pd.DataFrame(imputer.transform(X), columns=X.columns)
+print(f"Imputation complete. Training set: {X_train.shape[0]} rows, "
+      f"Test set: {X_test.shape[0]} rows.")
 
 # ================================
 # 9. Baseline Model (EC Threshold)
@@ -372,22 +384,25 @@ print("="*50)
 cv_shuffled = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
 cv_scores_all = {}
 
-full_scaler = StandardScaler()
-X_scaled = full_scaler.fit_transform(X)
-
-# Fresh instances are used so CV and test-set evaluations are fully
-# independent with no shared state between the two.
-cv_models = {
-    "KNN": KNeighborsClassifier(**knn_model.get_params()),
-    "LR":  LogisticRegression(**lr_model.get_params()),
-    "SVM": SVC(**svm_model.get_params()),
-    "RF":  RandomForestClassifier(**rf_model.get_params()),
+# Pipeline-based CV: imputation and scaling are fit inside each fold only.
+# Passing raw X (with missing values) to cross_val_score is intentional: 
+# each pipeline clone refits the imputer on that fold's training portion,
+# preventing any validation-fold values from influencing preprocessing.
+cv_pipelines = {
+    "KNN": Pipeline([('imputer', SimpleImputer(strategy='median')),
+                     ('scaler',  StandardScaler()),
+                     ('model',   KNeighborsClassifier(**knn_model.get_params()))]),
+    "LR":  Pipeline([('imputer', SimpleImputer(strategy='median')),
+                     ('scaler',  StandardScaler()),
+                     ('model',   LogisticRegression(**lr_model.get_params()))]),
+    "SVM": Pipeline([('imputer', SimpleImputer(strategy='median')),
+                     ('scaler',  StandardScaler()),
+                     ('model',   SVC(**svm_model.get_params()))]),
+    "RF":  Pipeline([('imputer', SimpleImputer(strategy='median')),
+                     ('model',   RandomForestClassifier(**rf_model.get_params()))]),
 }
-for name, model in cv_models.items():
-    # Use scaled data for KNN/LR/SVM, original for RF
-    X_input = X_scaled if name in ["KNN", "LR", "SVM"] else X
-
-    scores = cross_val_score(model, X_input, y, cv=cv_shuffled, scoring='accuracy')
+for name, pipeline in cv_pipelines.items():
+    scores = cross_val_score(pipeline, X, y, cv=cv_shuffled, scoring='accuracy')
     cv_scores_all[name] = scores
     print(f"{name:5}: Mean Acc = {scores.mean()*100:.2f}% | Std = {scores.std()*100:.2f}%")
 
@@ -421,7 +436,7 @@ print("\nGenerating Decision Boundary Visualization...")
 # 1. Reduce features to 2D for visualization
 # We use all features (X) to ensure the PCA space covers the whole data range
 pca_viz = PCA(n_components=2)
-X_pca = pca_viz.fit_transform(X)
+X_pca = pca_viz.fit_transform(X_full_imputed)  # use training-imputed data
 
 # 2. Define the models to compare using existing parameters
 # We use the parameters from our already-trained models for consistency
@@ -466,8 +481,13 @@ plt.close()
 # 20. Learning Curve (Random Forest)
 # =======================================
 print("\nGenerating Learning Curve - Random Forest...")
+# Learning curve also uses a pipeline so imputation is fold-isolated.
+rf_lc_pipeline = Pipeline([
+    ('imputer', SimpleImputer(strategy='median')),
+    ('model',   RandomForestClassifier(**rf_model.get_params()))
+])
 train_sizes, train_scores, test_scores = learning_curve(
-    RandomForestClassifier(**rf_model.get_params()), X, y,
+    rf_lc_pipeline, X, y,
     cv=cv_shuffled, scoring='accuracy', n_jobs=-1,
     train_sizes=np.linspace(0.1, 1.0, 10)
 )
@@ -614,7 +634,7 @@ plt.close()
 # 26. Inter-Feature Correlation Heatmap
 # ================================
 print("\nGenerating Inter-Feature Correlation heatmap...")
-corr_matrix = X.corr()
+corr_matrix = X_full_imputed.corr()  # use training-imputed data
 
 plt.figure(figsize=(12, 10))
 # Use 'coolwarm' or 'viridis' colors for clear contrast
@@ -642,8 +662,8 @@ print(f"Selected Minimalist Features: {minimal_features}")
 full_features = list(X.columns)
 
 feature_sets = {
-    f"Full Model ({len(full_features)} Features): ":         full_features,
-    f"Minimalist Model ({len(minimal_features)} Features): ": minimal_features,
+    f"Full Model ({len(full_features)} Features)":         full_features,
+    f"Minimalist Model ({len(minimal_features)} Features)": minimal_features,
 }
 
 ablation_results = []
