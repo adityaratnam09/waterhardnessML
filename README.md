@@ -29,7 +29,7 @@ The Random Forest classifier achieves
 
 A detailed paper describing the framework is available on Zenodo:
 
-https://doi.org/10.5281/zenodo.21315615
+**https://doi.org/10.5281/zenodo.21315615**
 
 ---
 
@@ -62,23 +62,41 @@ Every figure appearing in the paper is generated automatically.
 
 ## Repository Structure
 
-```
+```text
 waterhardnessML/
 │
 ├── waterhardnessML.py
 ├── README.md
-└── LICENSE
+├── LICENSE
+│
+└── images/
+    ├── Ablation Study on Random Forest using Turbidity.png
+    ├── Accuracy Model Comparison Bar Chart.png
+    ├── Class Distribution Plot.png
+    ├── Comprehensive Model Performance Bar Chart.png
+    ├── Comprehensive Model Performance Table.png
+    ├── Confusion Matrix - Random Forest.png
+    ├── Consolidated Model Stability Comparison 5-Fold CV.png
+    ├── Consolidated ROC Curves.png
+    ├── Decision Boundaries Comparison.png
+    ├── Feature Importance - Random Forest.png
+    ├── Feature Reduction Comparison - Random Forest.png
+    ├── Inter-Feature Correlation Heatmap.png
+    ├── Learning Curve - Random Forest.png
+    ├── Permutation Importance – Random Forest.png
+    ├── ROC Curve – Full vs Minimal Model – Random Forest.png
+    └── SHAP Feature Impact on RF Classification.png
 ```
 
 ---
 
 ## Requirements
 
-Python 3.10+
+Python **3.10+**
 
 Required packages
 
-```
+```text
 numpy
 pandas
 matplotlib
@@ -123,6 +141,18 @@ Running the script generates the figures presented in the accompanying paper, in
 - Figure 10 — SHAP Summary Plot
 - Figure 11 — Correlation Matrix
 - Figure 12 — Minimal Feature Set ROC Comparison
+
+<p align="center">
+  <img src="images/Comprehensive Model Performance Table.png"
+       alt="Comprehensive model performance comparison"
+       width="900">
+</p>
+
+<p align="center">
+  <img src="images/SHAP Feature Impact on RF Classification.png"
+       alt="SHAP summary plot explaining Random Forest predictions"
+       width="900">
+</p>
 
 ---
 
@@ -171,14 +201,27 @@ This project is released under the GNU General Public License v3.0.
 
 If you use this software in research, please cite both the software and the accompanying journal publication.
 
-**Software (GitHub):**
+**Software (GitHub)**
 
 ```text
-Ratnam, A. R. (2026). *waterhardnessML* (Version 1.0.0) [Computer software]. GitHub. https://github.com/adityaratnam09/waterhardnessML
+Ratnam, A. R. (2026).
+
+waterhardnessML (Version 1.0.0) [Computer software].
+
+GitHub.
+
+https://github.com/adityaratnam09/waterhardnessML
 ```
 
-**Journal publication (Zenodo):**
+**Journal publication (Zenodo)**
 
 ```text
-Ratnam, A. R. (2026). *An Interpretable Machine Learning Framework for River Water Hardness Classification*. Zenodo. https://doi.org/10.5281/zenodo.21315615
+Ratnam, A. R. (2026).
+
+An Interpretable Machine Learning Framework for River Water Hardness Classification.
+
+Zenodo.
+
+https://doi.org/10.5281/zenodo.21315615
 ```
+````
