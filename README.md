@@ -143,12 +143,6 @@ Running the script generates the figures presented in the accompanying paper, in
 - Figure 12 — Minimal Feature Set ROC Comparison
 
 <p align="center">
-  <img src="images/Comprehensive Model Performance Table.png"
-       alt="Comprehensive model performance comparison"
-       width="900">
-</p>
-
-<p align="center">
   <img src="images/SHAP Feature Impact on RF Classification.png"
        alt="SHAP summary plot explaining Random Forest predictions"
        width="900">
@@ -224,4 +218,3 @@ Zenodo.
 
 https://doi.org/10.5281/zenodo.21315615
 ```
-````
