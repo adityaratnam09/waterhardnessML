@@ -489,7 +489,7 @@ rf_lc_pipeline = Pipeline([
 train_sizes, train_scores, test_scores = learning_curve(
     rf_lc_pipeline, X, y,
     cv=cv_shuffled, scoring='accuracy', n_jobs=-1,
-    train_sizes=np.linspace(0.1, 1.0, 10)
+    train_sizes=np.linspace(0.1, 1.0, 10), shuffle=True, random_state=42
 )
 
 train_mean = np.mean(train_scores, axis=1)
