@@ -785,9 +785,9 @@ def make_predict_fn(model, sliders, feature_cols):
                 print(f"  (blanda={proba[list(le.classes_).index('blanda')]:.2f})"
                       f"   |   (semidura={proba[list(le.classes_).index('semidura')]:.2f})")
                 if pred_label == 'blanda':
-                    print("\n  Blanda = soft water  (<120 mg CaCO3/L)")
+                    print("\n  Blanda = soft water  (<150 mg CaCO3/L)")
                 else:
-                    print("\n  Semidura = moderately hard water  (120-180 mg CaCO3/L)")
+                    print("\n  Semidura = moderately hard water  (>=150 mg CaCO3/L)")
     button.on_click(on_click)
     return button, output
 
